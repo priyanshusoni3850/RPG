@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Text-to-Speech Generator</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 20px; }
+    .container { max-width: 600px; margin: 0 auto; }
+    label { display: block; margin-top: 15px; }
+    input, textarea { width: 100%; padding: 8px; margin-top: 5px; }
+    button { margin-top: 15px; padding: 10px 20px; }
+    #audio-player { margin-top: 20px; }
+    #error { color: red; margin-top: 10px; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Text-to-Speech Generator</h1>
+    <p>Upload a voice sample (audio up to 1 minute long) and enter text to generate speech.</p>
+    <form id="tts-form">
+      <label for="voice_sample">Voice Sample (Audio File):</label>
+      <input type="file" id="voice_sample" name="voice_sample" accept="audio/*" required>
+      
+      <label for="text">Text:</label>
+      <textarea id="text" name="text" rows="4" placeholder="Enter text here..." required></textarea>
+      
+      <button type="submit">Generate Speech</button>
+    </form>
+
+    <div id="error"></div>
+    
+    <div id="audio-player" style="display: none;">
+      <h2>Generated Speech</h2>
+      <audio controls id="audio-output"></audio>
+      <br>
+      <a id="download-link" href="#" download="output_speech.wav">Download Audio</a>
+    </div>
+  </div>
+
+  <script>
+    // Replace with your actual ngrok public URL
+    const NGROK_URL = "https://9717-35-197-49-174.ngrok-free.app";
+
+    // Helper function to get the duration of the audio file
+    function getAudioDuration(file) {
+      return new Promise((resolve, reject) => {
+        const objectUrl = URL.createObjectURL(file);
+        const audio = new Audio();
+        audio.src = objectUrl;
+        audio.addEventListener('loadedmetadata', () => {
+          URL.revokeObjectURL(objectUrl);
+          resolve(audio.duration);
+        });
+        audio.addEventListener('error', () => reject("Error loading audio metadata."));
+      });
+    }
+
+    document.getElementById('tts-form').addEventListener('submit', async function(event) {
+      event.preventDefault();
+      
+      const errorDiv = document.getElementById('error');
+      errorDiv.textContent = "";
+      
+      const fileInput = document.getElementById('voice_sample');
+      const file = fileInput.files[0];
+      
+      if (!file) {
+        errorDiv.textContent = "Please select an audio file.";
+        return;
+      }
+      
+      // Validate that the audio file is no longer than 1 minute
+      try {
+        const duration = await getAudioDuration(file);
+        if (duration > 60) {
+          errorDiv.textContent = "Audio file is longer than 1 minute. Please select a shorter audio file.";
+          return;
+        }
+      } catch (err) {
+        errorDiv.textContent = "Error reading audio file.";
+        return;
+      }
+      
+      const formData = new FormData();
+      formData.append('voice_sample', file);
+      formData.append('text', document.getElementById('text').value);
+      
+      try {
+        // Use the full ngrok URL for the fetch call
+        const response = await fetch(NGROK_URL + '/process', {
+          method: 'POST',
+          body: formData
+        });
+        
+        if (!response.ok) {
+          const errorData = await response.json();
+          errorDiv.textContent = errorData.error || "An error occurred.";
+          return;
+        }
+        
+        const blob = await response.blob();
+        const audioUrl = URL.createObjectURL(blob);
+        
+        const audioElement = document.getElementById('audio-output');
+        audioElement.src = audioUrl;
+        
+        const downloadLink = document.getElementById('download-link');
+        downloadLink.href = audioUrl;
+        
+        document.getElementById('audio-player').style.display = "block";
+      } catch (err) {
+        errorDiv.textContent = "Error: " + err.message;
+      }
+    });
+  </script>
+</body>
+</html>
