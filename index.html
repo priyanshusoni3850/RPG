@@ -3,9 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Text-to-Speech Generator</title>
+  <title>Emotion-Based Voice Cloning</title>
   <style>
-    /* Google Font */
     @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;500&display=swap');
 
     body {
@@ -25,7 +24,6 @@
     }
     h1 {
       text-align: center;
-      margin-bottom: 10px;
       color: #2c3e50;
     }
     p {
@@ -37,8 +35,7 @@
       margin-top: 20px;
       font-weight: 500;
     }
-    input[type="file"],
-    textarea {
+    input[type="file"], textarea, select {
       width: 100%;
       padding: 10px;
       margin-top: 8px;
@@ -92,7 +89,6 @@
       background: #3498db;
       color: #fff;
     }
-    /* Processing indicator */
     #processing {
       display: none;
       text-align: center;
@@ -116,21 +112,33 @@
 </head>
 <body>
   <div class="container">
-    <h1>Text-to-Speech Generator</h1>
-    <p>Upload a voice sample (up to 1 minute long) and enter text to generate speech.</p>
+    <h1>Emotion-Based Voice Cloning</h1>
+    <p>Upload a voice sample, enter text, and select an emotion to generate speech.</p>
+    
     <form id="tts-form">
       <label for="voice_sample">Voice Sample (Audio File):</label>
       <input type="file" id="voice_sample" name="voice_sample" accept="audio/*" required>
       
       <label for="text">Text:</label>
       <textarea id="text" name="text" rows="4" placeholder="Enter text here..." required></textarea>
+
+      <label for="emotion">Select Emotion:</label>
+      <select id="emotion" name="emotion">
+        <option value="neutral">Neutral</option>
+        <option value="happy">Happy</option>
+        <option value="sad">Sad</option>
+        <option value="angry">Angry</option>
+        <option value="fearful">Fearful</option>
+        <option value="excited">Excited</option>
+        <option value="disgusted">Disgusted</option>
+        <option value="surprised">Surprised</option>
+      </select>
       
       <button type="submit">Generate Speech</button>
     </form>
 
     <div id="error"></div>
     
-    <!-- Processing indicator -->
     <div id="processing">
       <div class="spinner"></div>
       <p>Processing, please wait...</p>
@@ -145,11 +153,9 @@
   </div>
 
   <script>
-    // Replace with your actual ngrok public URL
-    const NGROK_URL = "https://9717-35-197-49-174.ngrok-free.app";
+    const NGROK_URL = "https://a9a2-34-125-100-225.ngrok-free.app"; // Replace with your actual Ngrok URL
 
-    // Helper function to get the duration of the audio file
-    function getAudioDuration(file) {
+    async function getAudioDuration(file) {
       return new Promise((resolve, reject) => {
         const objectUrl = URL.createObjectURL(file);
         const audio = new Audio();
@@ -175,13 +181,14 @@
 
       const fileInput = document.getElementById('voice_sample');
       const file = fileInput.files[0];
-      
+      const text = document.getElementById('text').value;
+      const emotion = document.getElementById('emotion').value;
+
       if (!file) {
         errorDiv.textContent = "Please select an audio file.";
         return;
       }
-      
-      // Validate that the audio file is no longer than 1 minute
+
       try {
         const duration = await getAudioDuration(file);
         if (duration > 60) {
@@ -192,38 +199,33 @@
         errorDiv.textContent = "Error reading audio file.";
         return;
       }
-      
+
       const formData = new FormData();
       formData.append('voice_sample', file);
-      formData.append('text', document.getElementById('text').value);
-      
-      // Show processing indicator
+      formData.append('text', text);
+      formData.append('emotion', emotion);
+
       processingDiv.style.display = "block";
-      
+
       try {
         const response = await fetch(NGROK_URL + '/process', {
           method: 'POST',
           body: formData
         });
-        
-        // Hide processing indicator when response returns
+
         processingDiv.style.display = "none";
-        
+
         if (!response.ok) {
           const errorData = await response.json();
           errorDiv.textContent = errorData.error || "An error occurred.";
           return;
         }
-        
+
         const blob = await response.blob();
         const audioUrl = URL.createObjectURL(blob);
-        
-        const audioElement = document.getElementById('audio-output');
-        audioElement.src = audioUrl;
-        
-        const downloadLink = document.getElementById('download-link');
-        downloadLink.href = audioUrl;
-        
+
+        document.getElementById('audio-output').src = audioUrl;
+        document.getElementById('download-link').href = audioUrl;
         audioPlayerDiv.style.display = "block";
       } catch (err) {
         processingDiv.style.display = "none";
